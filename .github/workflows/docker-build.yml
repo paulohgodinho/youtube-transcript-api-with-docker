@@ -1,8 +1,9 @@
 name: Build and Push Docker Image
 
 on:
+  workflow_dispatch:
   push:
-    branches: [master]
+    branches: [main]
 
 env:
   REGISTRY: ghcr.io
