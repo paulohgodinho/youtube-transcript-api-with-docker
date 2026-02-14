@@ -61,7 +61,7 @@ def fetch_transcript():
 
 def run_server():
     """Run the Flask server"""
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("YOUTUBE_TRANSCRIPT_PORT", 5000))
     host = os.environ.get("HOST", "0.0.0.0")
     debug = os.environ.get("DEBUG", "False").lower() == "true"
     

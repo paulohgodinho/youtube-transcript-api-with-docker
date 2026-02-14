@@ -31,8 +31,5 @@ COPY youtube_transcript_api ./youtube_transcript_api
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh
 
-# Expose port for server mode
-EXPOSE 5000
-
 # Use entrypoint script for dual mode
 ENTRYPOINT ["./entrypoint.sh"]
