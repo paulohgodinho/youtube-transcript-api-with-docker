@@ -7,16 +7,13 @@ import (
 	"net/http"
 	"os"
 	"time"
-
-	"github.com/youtube-transcript-api/server/internal/api"
-	"github.com/youtube-transcript-api/server/internal/python"
 )
 
 func main() {
 	// Parse command line flags
-	pythonBin := flag.String("python", python.DefaultPythonBin, "Path to Python executable")
+	pythonBin := flag.String("python", DefaultPythonBin, "Path to Python executable")
 	port := flag.String("port", "8080", "Port to listen on")
-	timeout := flag.Duration("timeout", python.DefaultTimeout, "Request timeout")
+	timeout := flag.Duration("timeout", DefaultTimeout, "Request timeout")
 	flag.Parse()
 
 	// Override with environment variables if set
@@ -33,14 +30,14 @@ func main() {
 	}
 
 	// Create Python CLI wrapper
-	cli, err := python.NewCLI(*pythonBin, *timeout)
+	cli, err := NewCLI(*pythonBin, *timeout)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
 	// Create handler
-	handler := api.NewHandler(cli)
+	handler := NewHandler(cli)
 
 	// Set up routes
 	http.HandleFunc("/health", handler.Health)

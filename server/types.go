@@ -1,4 +1,4 @@
-package models
+package main
 
 // TranscriptRequest represents a request to fetch transcripts for one or more videos
 type TranscriptRequest struct {

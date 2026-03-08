@@ -1,21 +1,18 @@
-package api
+package main
 
 import (
 	"encoding/json"
 	"io"
 	"net/http"
-
-	"github.com/youtube-transcript-api/server/internal/models"
-	"github.com/youtube-transcript-api/server/internal/python"
 )
 
 // Handler holds dependencies for HTTP handlers
 type Handler struct {
-	cli *python.CLI
+	cli *CLI
 }
 
 // NewHandler creates a new HTTP handler
-func NewHandler(cli *python.CLI) *Handler {
+func NewHandler(cli *CLI) *Handler {
 	return &Handler{
 		cli: cli,
 	}
@@ -29,7 +26,7 @@ func (h *Handler) Health(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.HealthResponse{
+	json.NewEncoder(w).Encode(HealthResponse{
 		Status: "ok",
 	})
 }
@@ -45,7 +42,7 @@ func (h *Handler) Version(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(models.ErrorResponse{
+		json.NewEncoder(w).Encode(ErrorResponse{
 			Success: false,
 			Error:   err.Error(),
 		})
@@ -53,7 +50,7 @@ func (h *Handler) Version(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.VersionResponse{
+	json.NewEncoder(w).Encode(VersionResponse{
 		Version: version,
 	})
 }
@@ -70,18 +67,18 @@ func (h *Handler) Transcripts(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(models.ErrorResponse{
+		json.NewEncoder(w).Encode(ErrorResponse{
 			Success: false,
 			Error:   "Failed to read request body",
 		})
 		return
 	}
 
-	var req models.TranscriptRequest
+	var req TranscriptRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(models.ErrorResponse{
+		json.NewEncoder(w).Encode(ErrorResponse{
 			Success: false,
 			Error:   "Invalid JSON in request body: " + err.Error(),
 		})
@@ -91,7 +88,7 @@ func (h *Handler) Transcripts(w http.ResponseWriter, r *http.Request) {
 	if len(req.VideoIDs) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(models.ErrorResponse{
+		json.NewEncoder(w).Encode(ErrorResponse{
 			Success: false,
 			Error:   "videoIds is required and must not be empty",
 		})
@@ -107,16 +104,16 @@ func (h *Handler) Transcripts(w http.ResponseWriter, r *http.Request) {
 		req.Translate,
 	)
 
-	transcripts := make([]models.TranscriptData, 0, len(results))
+	transcripts := make([]TranscriptData, 0, len(results))
 	for videoID, data := range results {
-		transcripts = append(transcripts, models.TranscriptData{
+		transcripts = append(transcripts, TranscriptData{
 			VideoID: videoID,
 			Data:    data,
 		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.TranscriptResponse{
+	json.NewEncoder(w).Encode(TranscriptResponse{
 		Success:     true,
 		Transcripts: transcripts,
 	})
@@ -134,18 +131,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(models.ErrorResponse{
+		json.NewEncoder(w).Encode(ErrorResponse{
 			Success: false,
 			Error:   "Failed to read request body",
 		})
 		return
 	}
 
-	var req models.ListRequest
+	var req ListRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(models.ErrorResponse{
+		json.NewEncoder(w).Encode(ErrorResponse{
 			Success: false,
 			Error:   "Invalid JSON in request body: " + err.Error(),
 		})
@@ -155,7 +152,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if len(req.VideoIDs) == 0 {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(models.ErrorResponse{
+		json.NewEncoder(w).Encode(ErrorResponse{
 			Success: false,
 			Error:   "videoIds is required and must not be empty",
 		})
@@ -164,16 +161,16 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 	results, err := h.cli.ListTranscripts(req.VideoIDs)
 
-	transcripts := make([]models.TranscriptData, 0, len(results))
+	transcripts := make([]TranscriptData, 0, len(results))
 	for videoID, data := range results {
-		transcripts = append(transcripts, models.TranscriptData{
+		transcripts = append(transcripts, TranscriptData{
 			VideoID: videoID,
 			Data:    data,
 		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(models.TranscriptResponse{
+	json.NewEncoder(w).Encode(TranscriptResponse{
 		Success:     true,
 		Transcripts: transcripts,
 	})
