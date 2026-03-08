@@ -1,0 +1,28 @@
+# Binaries
+/youtube-api
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go build artifacts
+/bin/
+/dist/
+
+# Dependencies
+go.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/tmp/
