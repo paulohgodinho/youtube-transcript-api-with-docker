@@ -1,0 +1,294 @@
+basePath: /
+definitions:
+  main.ErrorResponse:
+    description: Standard API error response with success flag and error message
+    properties:
+      error:
+        description: |-
+          Error contains a human-readable error message describing what went wrong.
+          Provides sufficient detail for clients to understand and potentially fix the issue.
+          Examples: "videoIds is required and must not be empty", "Invalid JSON in request body", etc.
+        example: videoIds is required and must not be empty
+        type: string
+      success:
+        description: |-
+          Success is always false for error responses.
+          Allows clients to check response status consistently across all endpoints.
+        example: false
+        type: boolean
+    type: object
+  main.HealthResponse:
+    description: Server health status indicator
+    properties:
+      status:
+        description: |-
+          Status indicates the server health status.
+          Always "ok" if the server is running and responding.
+          Used for monitoring, load balancer health checks, and uptime verification.
+        example: ok
+        type: string
+    type: object
+  main.ListRequest:
+    description: YouTube video transcript listing request for metadata discovery
+    properties:
+      videoIds:
+        description: |-
+          VideoIDs is a required list of YouTube video IDs to list available transcripts for.
+          Each ID should be a valid YouTube video ID (typically 11 characters).
+          Example: "dQw4w9WgXcQ" (Rick Astley - Never Gonna Give You Up)
+        example:
+        - dQw4w9WgXcQ
+        - jNQXAC9IVRw
+        items:
+          type: string
+        type: array
+    type: object
+  main.TranscriptRequest:
+    description: YouTube video transcript fetch request with optional filtering and
+      translation
+    properties:
+      excludeGenerated:
+        default: false
+        description: |-
+          ExcludeGenerated, when true, excludes auto-generated transcripts from the results.
+          YouTube auto-generates transcripts using speech recognition if no manual transcript exists.
+          Defaults to false (includes auto-generated transcripts).
+        example: false
+        type: boolean
+      excludeManuallyCreated:
+        default: false
+        description: |-
+          ExcludeManuallyCreated, when true, excludes manually created transcripts from the results.
+          Defaults to false (includes manually created transcripts).
+        example: false
+        type: boolean
+      format:
+        default: json
+        description: |-
+          Format specifies the output format for the transcript content.
+          Valid values: 'json' (structured with timing information), 'text' (plain text only).
+          Defaults to 'json' if not specified.
+        example: json
+        type: string
+      languages:
+        description: |-
+          Languages is an optional list of language codes to filter transcripts by (e.g., 'en', 'es', 'fr').
+          If not specified, the API defaults to English ('en').
+          Use standard ISO 639-1 language codes.
+        example:
+        - en
+        - es
+        - fr
+        items:
+          type: string
+        type: array
+      translate:
+        description: |-
+          Translate, when specified with a language code, translates the transcript to that language.
+          Only works if the transcript's isTranslatable field is true.
+          Example: "es" translates to Spanish, "fr" translates to French.
+          Leave empty or omit to skip translation.
+        example: es
+        type: string
+      videoIds:
+        description: |-
+          VideoIDs is a required list of YouTube video IDs to fetch transcripts for.
+          Each ID should be a valid YouTube video ID (typically 11 characters).
+          Example: "dQw4w9WgXcQ" (Rick Astley - Never Gonna Give You Up)
+        example:
+        - dQw4w9WgXcQ
+        - jNQXAC9IVRw
+        items:
+          type: string
+        type: array
+    type: object
+  main.TranscriptResponse:
+    description: Standard response wrapper for transcript API operations
+    properties:
+      error:
+        description: |-
+          Error contains the error message if Success is false.
+          Empty or omitted if Success is true.
+          Provides details about what went wrong (missing parameters, API errors, etc.).
+        example: videoIds is required and must not be empty
+        type: string
+      success:
+        description: |-
+          Success indicates whether the request was processed successfully.
+          True if all requested transcripts were fetched/listed without errors.
+          False if any error occurred during processing.
+        example: true
+        type: boolean
+      transcripts:
+        description: |-
+          Transcripts contains the response data.
+          Type varies based on the endpoint called:
+          - For /transcripts: array of FetchTranscriptResult objects
+          - For /list: array of ListTranscriptResult objects
+          Only populated if Success is true. Omitted if Success is false.
+    type: object
+  main.VersionResponse:
+    description: Version information of the youtube-transcript-api Python CLI package
+    properties:
+      version:
+        description: |-
+          Version is the semantic version string of the youtube-transcript-api package
+          being used by the server (e.g., "0.6.2", "0.7.0").
+          Helps verify that the correct CLI tool version is installed and accessible.
+          Returns "unknown" if the version cannot be determined.
+        example: 0.6.2
+        type: string
+    type: object
+externalDocs:
+  description: YouTube Transcript API GitHub Repository
+  url: https://github.com/jdepoix/youtube-transcript-api
+host: localhost:8080
+info:
+  contact:
+    name: Project Repository
+    url: https://github.com/jdepoix/youtube-transcript-api
+  description: |-
+    A REST API wrapper for fetching and listing YouTube video transcripts.
+    This API provides programmatic access to YouTube transcripts through a simple REST interface,
+    leveraging the youtube-transcript-api CLI tool under the hood.
+    It supports multiple languages, transcript filtering, and translation capabilities.
+  license:
+    name: MIT License
+    url: https://github.com/jdepoix/youtube-transcript-api/blob/master/LICENSE
+  title: YouTube Transcript API
+  version: 1.0.0
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Checks if the server is running and responsive. Returns a simple status response indicating server health.
+        This endpoint can be used for monitoring and load balancer health checks.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Server is healthy
+          schema:
+            $ref: '#/definitions/main.HealthResponse'
+        "405":
+          description: Method not allowed
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Health Check
+      tags:
+      - System
+  /list:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Lists all available transcripts for one or more YouTube videos, including manually created and auto-generated transcripts with their metadata.
+        Does not fetch the actual transcript content, only information about what transcripts are available.
+        Includes language information, whether transcripts are translatable, and available translation languages.
+        Returns an array of list results, one for each requested video.
+      parameters:
+      - description: Request containing video IDs to list transcripts for
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.ListRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Available transcripts listed successfully
+          schema:
+            $ref: '#/definitions/main.TranscriptResponse'
+        "400":
+          description: Invalid request (missing videoIds, invalid JSON, empty body,
+            etc.)
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "405":
+          description: Method not allowed
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Server error during transcript listing
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: List Available Transcripts
+      tags:
+      - Transcripts
+  /transcripts:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Fetches transcripts for one or more YouTube videos with optional filtering and translation.
+        Supports language filtering, transcript format selection, and exclusion of auto-generated or manually-created transcripts.
+        Can also translate transcripts to other languages if the transcript is marked as translatable.
+        Returns an array of transcript results, one for each requested video.
+      parameters:
+      - description: Request containing video IDs and optional filters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/main.TranscriptRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Transcripts retrieved successfully
+          schema:
+            $ref: '#/definitions/main.TranscriptResponse'
+        "400":
+          description: Invalid request (missing videoIds, invalid JSON, empty body,
+            etc.)
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "405":
+          description: Method not allowed
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Server error during transcript fetching
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Fetch Video Transcripts
+      tags:
+      - Transcripts
+  /version:
+    get:
+      consumes:
+      - application/json
+      description: |-
+        Returns the version of the youtube-transcript-api Python package being used by the server.
+        This helps verify that the correct CLI tool version is installed and accessible.
+        If the version cannot be determined, returns "unknown".
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Version retrieved successfully
+          schema:
+            $ref: '#/definitions/main.VersionResponse'
+        "405":
+          description: Method not allowed
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+        "500":
+          description: Failed to get version from CLI
+          schema:
+            $ref: '#/definitions/main.ErrorResponse'
+      summary: Get API Version
+      tags:
+      - System
+schemes:
+- http
+- https
+swagger: "2.0"
+tags:
+- description: System and health check endpoints
+  name: System
+- description: Transcript fetching and listing endpoints
+  name: Transcripts

@@ -9,6 +9,33 @@ import (
 	"time"
 )
 
+// @title           YouTube Transcript API
+// @version         1.0.0
+// @description     A REST API wrapper for fetching and listing YouTube video transcripts.
+// @description     This API provides programmatic access to YouTube transcripts through a simple REST interface,
+// @description     leveraging the youtube-transcript-api CLI tool under the hood.
+// @description     It supports multiple languages, transcript filtering, and translation capabilities.
+
+// @contact.name    Project Repository
+// @contact.url     https://github.com/jdepoix/youtube-transcript-api
+
+// @license.name    MIT License
+// @license.url     https://github.com/jdepoix/youtube-transcript-api/blob/master/LICENSE
+
+// @host            localhost:8080
+// @BasePath        /
+
+// @schemes         http https
+
+// @externalDocs.description  YouTube Transcript API GitHub Repository
+// @externalDocs.url          https://github.com/jdepoix/youtube-transcript-api
+
+// @tag.name        System
+// @tag.description System and health check endpoints
+
+// @tag.name        Transcripts
+// @tag.description Transcript fetching and listing endpoints
+
 func main() {
 	// Parse command line flags
 	pythonBin := flag.String("python", DefaultPythonBin, "Path to Python executable")
