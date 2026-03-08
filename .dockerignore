@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+*.md
+youtube_transcript_api
+*.lock
+*.sum
+.DS_Store
+__pycache__
+*.pyc
+.venv
+venv
+node_modules
+coverage
+.idea
+.vscode
