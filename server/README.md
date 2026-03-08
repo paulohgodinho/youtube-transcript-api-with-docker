@@ -20,7 +20,7 @@ pip install youtube-transcript-api
 
 ```bash
 cd server
-go build -o youtube-api ./cmd/youtube-api
+go build -o youtube-api .
 ```
 
 ### 3. Run the server
@@ -237,24 +237,19 @@ If a Python command fails (e.g., invalid video ID):
 
 ```
 server/
-├── cmd/youtube-api/
-│   └── main.go          # Binary entrypoint
-├── internal/
-│   ├── api/
-│   │   └── handlers.go  # HTTP endpoint handlers
-│   ├── models/
-│   │   └── types.go     # Request/response types
-│   └── python/
-│       └── cli.go       # Python CLI wrapper
-├── go.mod
-├── go.sum
+├── main.go              # Server entrypoint
+├── handlers.go          # HTTP endpoint handlers
+├── types.go             # Request/response types
+├── cli.go               # Python CLI wrapper
+├── go.mod               # Go module definition
+├── .gitignore
 └── README.md
 ```
 
 ### Building
 
 ```bash
-go build -o youtube-api ./cmd/youtube-api
+go build -o youtube-api .
 ```
 
 ### Running with debug output
