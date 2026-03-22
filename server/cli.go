@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 )
 
@@ -99,25 +100,18 @@ func (c *CLI) FetchTranscripts(
 	excludeGenerated bool,
 	excludeManuallyCreated bool,
 	translate string,
-) (map[string]interface{}, error) {
-	// Default to pretty format if not specified
-	if format == "" {
-		format = "pretty"
-	}
-
-	// Default to English if no languages specified
+) ([]FetchTranscriptResult, error) {
 	if len(languages) == 0 {
 		languages = []string{"en"}
 	}
 
-	results := make(map[string]interface{})
+	var results []FetchTranscriptResult
 
-	// Execute Python CLI for each video ID
 	for _, videoID := range videoIDs {
 		args := c.buildFetchArgs(
 			videoID,
 			languages,
-			format,
+			"json",
 			excludeGenerated,
 			excludeManuallyCreated,
 			translate,
@@ -125,34 +119,23 @@ func (c *CLI) FetchTranscripts(
 
 		output, err := c.executeCommand(args)
 		if err != nil {
-			results[videoID] = map[string]interface{}{
-				"error": err.Error(),
-			}
 			continue
 		}
 
-		// Parse output based on format
-		var data interface{}
-		if format == "json" {
-			var jsonData []map[string]interface{}
-			if err := json.Unmarshal([]byte(output), &jsonData); err != nil {
-				data = output
-			} else {
-				data = jsonData
-			}
-		} else {
-			data = output
+		result, err := c.parseFetchOutput(videoID, output)
+		if err != nil {
+			continue
 		}
 
-		results[videoID] = data
+		results = append(results, result)
 	}
 
 	return results, nil
 }
 
 // ListTranscripts lists available transcripts for the given video IDs
-func (c *CLI) ListTranscripts(videoIDs []string) (map[string]interface{}, error) {
-	results := make(map[string]interface{})
+func (c *CLI) ListTranscripts(videoIDs []string) ([]ListTranscriptResult, error) {
+	var results []ListTranscriptResult
 
 	for _, videoID := range videoIDs {
 		args := []string{
@@ -163,13 +146,15 @@ func (c *CLI) ListTranscripts(videoIDs []string) (map[string]interface{}, error)
 
 		output, err := c.executeCommand(args)
 		if err != nil {
-			results[videoID] = map[string]interface{}{
-				"error": err.Error(),
-			}
 			continue
 		}
 
-		results[videoID] = output
+		result, err := c.parseListOutput(videoID, output)
+		if err != nil {
+			continue
+		}
+
+		results = append(results, result)
 	}
 
 	return results, nil
@@ -238,4 +223,116 @@ func (c *CLI) executeCommand(args []string) (string, error) {
 		cmd.Process.Kill()
 		return "", fmt.Errorf("command timed out after %v", c.config.Timeout)
 	}
+}
+
+// parseFetchOutput parses the JSON output from youtube_transcript_api fetch command
+func (c *CLI) parseFetchOutput(videoID string, output string) (FetchTranscriptResult, error) {
+	// Output format is nested array: [[{text, start, duration}, ...]]
+	var nestedSnippets [][]TranscriptSnippet
+	err := json.Unmarshal([]byte(output), &nestedSnippets)
+	if err != nil {
+		return FetchTranscriptResult{}, fmt.Errorf("failed to parse transcript JSON: %w", err)
+	}
+
+	// Extract the first (and should be only) inner array
+	var snippets []TranscriptSnippet
+	if len(nestedSnippets) > 0 {
+		snippets = nestedSnippets[0]
+	}
+
+	return FetchTranscriptResult{
+		VideoID:      videoID,
+		Snippets:     snippets,
+		Language:     "en",
+		LanguageCode: "en",
+		IsGenerated:  false,
+	}, nil
+}
+
+// parseListOutput parses the text output from youtube_transcript_api list-transcripts command
+func (c *CLI) parseListOutput(videoID string, output string) (ListTranscriptResult, error) {
+	lines := strings.Split(output, "\n")
+
+	result := ListTranscriptResult{
+		VideoID:              videoID,
+		ManuallyCreated:      []TranscriptMetadata{},
+		Generated:            []TranscriptMetadata{},
+		TranslationLanguages: []TranscriptMetadata{},
+	}
+
+	var currentSection string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.Contains(trimmed, "(MANUALLY CREATED)") {
+			currentSection = "manually_created"
+			continue
+		}
+		if strings.Contains(trimmed, "(GENERATED)") {
+			currentSection = "generated"
+			continue
+		}
+		if strings.Contains(trimmed, "(TRANSLATION LANGUAGES)") {
+			currentSection = "translation"
+			continue
+		}
+
+		if trimmed == "" || !strings.HasPrefix(trimmed, "- ") {
+			continue
+		}
+
+		trimmed = strings.TrimPrefix(trimmed, "- ")
+
+		metadata, err := parseTranscriptLine(trimmed)
+		if err != nil {
+			continue
+		}
+
+		switch currentSection {
+		case "manually_created":
+			result.ManuallyCreated = append(result.ManuallyCreated, metadata)
+		case "generated":
+			result.Generated = append(result.Generated, metadata)
+		case "translation":
+			result.TranslationLanguages = append(result.TranslationLanguages, metadata)
+		}
+	}
+
+	return result, nil
+}
+
+// parseTranscriptLine parses a single transcript line from the list output
+// Format: "en ("English")[TRANSLATABLE]" or "ar ("Arabic")"
+func parseTranscriptLine(line string) (TranscriptMetadata, error) {
+	metadata := TranscriptMetadata{}
+
+	// Extract language code (first part before space or paren)
+	parts := strings.Fields(line)
+	if len(parts) == 0 {
+		return metadata, fmt.Errorf("empty line")
+	}
+
+	langCode := parts[0]
+	metadata.LanguageCode = langCode
+
+	// Extract language name from quotes
+	startQuote := strings.Index(line, "(\"")
+	endQuote := strings.Index(line, "\")")
+	if startQuote != -1 && endQuote != -1 && startQuote < endQuote {
+		startQuote += 2
+		metadata.Language = line[startQuote:endQuote]
+	}
+
+	// Check if translatable
+	if strings.Contains(line, "[TRANSLATABLE]") {
+		metadata.IsTranslatable = true
+	}
+
+	// Check if auto-generated
+	if strings.Contains(metadata.Language, "auto-generated") || strings.Contains(metadata.Language, "(auto-generated)") {
+		metadata.IsGenerated = true
+	}
+
+	return metadata, nil
 }
